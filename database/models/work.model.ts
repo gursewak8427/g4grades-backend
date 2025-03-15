@@ -14,7 +14,7 @@ export interface IWork extends Document {
       price: number;
       dueDateTime: Date;
       status: "PENDING" | "ACCEPTED" | "REJECTED";
-      paymentStatus: "PENDING" | "PAID";
+      paymentStatus: "PENDING" | "PROCESSING" | "PAID";
     }
   ];
 }
@@ -48,7 +48,7 @@ const WorkSchema = new Schema<IWork>({
       },
       paymentStatus: {
         type: String,
-        enum: ["PENDING", "PAID"],
+        enum: ["PENDING", "PROCESSING", "PAID"],
         default: "PENDING",
       },
     },

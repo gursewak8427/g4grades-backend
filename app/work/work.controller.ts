@@ -131,8 +131,10 @@ export const handleUpdateOffer = async (req: any, res: any) => {
       senderId: uid,
       content: workItem.offers[offerIndex]["offerId"],
       messageType:
-        data["paymentStatus"] == "PAID"
+        data["paymentStatus"] == "PROCESSING"
           ? "offer-payment"
+          : data["paymentStatus"] == "PAID"
+          ? "offer-payment-confirm"
           : data["status"] == "ACCEPTED"
           ? "offer-accepted"
           : "offer-rejected",
@@ -159,6 +161,74 @@ export const handleUpdateOffer = async (req: any, res: any) => {
     });
   } catch (error) {
     console.error("Error updating offer:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
+
+export const handleAdminUpdateWork = async (req: any, res: any) => {
+  try {
+    const { workId, data } = req.body;
+    const io = req["io"];
+    const { uid } = req.user;
+
+    if (!workId || !data) {
+      return res.status(400).json({
+        success: false,
+        message: "Missing required fields: workId or update data",
+      });
+    }
+
+    // Find the work item
+    const workItem: any = await workModel.findById(workId);
+    if (!workItem) {
+      return res.status(404).json({
+        success: false,
+        message: "Work item not found",
+      });
+    }
+
+    // Update only provided fields
+    Object.keys(data).forEach((key) => {
+      if (data[key] !== undefined) {
+        workItem[key] = data[key];
+      }
+    });
+
+    // Save the updated document
+    await workItem.save();
+
+    const message: any = {
+      _id: new mongoose.Types.ObjectId(),
+      chatId: workId,
+      senderId: uid,
+      content: data["status"] ? data["status"] : "",
+      messageType: data["status"] ? "work-status" : "",
+      timestamp: new Date()?.toUTCString(),
+      status: "SENT",
+    };
+
+    // Emit the message via socket first
+    io.to(workId).emit("new_message", message);
+
+    // Save message
+    const savedMessage = await Message.create(message);
+
+    // Emit WebSocket event for real-time updates
+    io.to(workId).emit("work_update", {
+      type: "work-status",
+      work: workItem,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Work updated successfully",
+      work: workItem,
+    });
+  } catch (error) {
+    console.error("Error updating work:", error);
     return res.status(500).json({
       success: false,
       message: "Internal Server Error",

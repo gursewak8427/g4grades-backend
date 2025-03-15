@@ -3,7 +3,7 @@ import { Router } from "express";
 import { resources } from "../../utils/resources";
 import workModel from "../../database/models/work.model";
 import { checkLogin } from "../../middlewares";
-import { handleNewOffer, handleUpdateOffer } from "./work.controller";
+import { handleAdminUpdateWork, handleNewOffer, handleUpdateOffer } from "./work.controller";
 
 const router = Router();
 
@@ -38,5 +38,6 @@ router.patch("/work/:id", checkLogin, workResources.update);
 router.post("/admin/work/list", checkLogin, workResources.list);
 router.post("/admin/work/offer", checkLogin, handleNewOffer);
 router.post("/work/offer/update", checkLogin, handleUpdateOffer);
+router.post("/admin/work/update", checkLogin, handleAdminUpdateWork);
 
 export default router;

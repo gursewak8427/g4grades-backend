@@ -20,7 +20,9 @@ export interface IMessage extends Document {
     | "file"
     | "offer-accepted"
     | "offer-rejected"
-    | "offer-payment";
+    | "offer-payment"
+    | "offer-payment-confirm"
+    | "work-status";
   status: "SENT" | "DELIVERED" | "SEEN";
   files: IFile[];
 }
@@ -56,6 +58,8 @@ const MessageSchema = new Schema<IMessage>({
       "offer-accepted",
       "offer-rejected",
       "offer-payment",
+      "offer-payment-confirm",
+      "work-status",
     ],
     default: "text",
   },
