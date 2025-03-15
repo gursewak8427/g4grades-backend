@@ -43,7 +43,12 @@ app.use(express.json());
 app.use(bodyParser.json());
 app.use(
   cors({
-    origin: ["http://localhost:5173", "http://192.168.1.2:5173"],
+    origin: [
+      "http://localhost:5173",
+      "http://192.168.1.2:5173",
+      "http://g4grades-api.vercel.app",
+      "https://g4grades-api.vercel.app",
+    ],
     credentials: true,
   })
 );
