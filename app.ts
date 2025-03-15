@@ -62,7 +62,7 @@ connectMongoDb();
 // Test Route
 app.get("/", (req: any, res: any) => {
   return res.json({
-    message: "Prismonic server is active now!",
+    message: "G4 Grades server is active now!",
     success: true,
   });
 });
