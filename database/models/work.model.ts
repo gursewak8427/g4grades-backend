@@ -38,6 +38,7 @@ const WorkSchema = new Schema<IWork>({
   },
   offers: [
     {
+      offerId: String,
       price: Number,
       dueDateTime: Date,
       status: {

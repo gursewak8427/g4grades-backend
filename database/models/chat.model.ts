@@ -13,7 +13,14 @@ export interface IMessage extends Document {
   chatId: mongoose.Types.ObjectId;
   content: string;
   timestamp: Date;
-  messageType: "text" | "offer" | "payment";
+  messageType:
+    | "text"
+    | "offer"
+    | "payment"
+    | "file"
+    | "offer-accepted"
+    | "offer-rejected"
+    | "offer-payment";
   status: "SENT" | "DELIVERED" | "SEEN";
   files: IFile[];
 }
@@ -41,7 +48,15 @@ const MessageSchema = new Schema<IMessage>({
   timestamp: { type: Date, default: Date.now },
   messageType: {
     type: String,
-    enum: ["text", "offer", "payment", "file"],
+    enum: [
+      "text",
+      "offer",
+      "payment",
+      "file",
+      "offer-accepted",
+      "offer-rejected",
+      "offer-payment",
+    ],
     default: "text",
   },
   status: {
