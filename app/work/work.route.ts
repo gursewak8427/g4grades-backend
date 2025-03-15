@@ -3,7 +3,12 @@ import { Router } from "express";
 import { resources } from "../../utils/resources";
 import workModel from "../../database/models/work.model";
 import { checkLogin } from "../../middlewares";
-import { handleAdminUpdateWork, handleNewOffer, handleUpdateOffer } from "./work.controller";
+import {
+  handleAdminUpdateWork,
+  handleNewOffer,
+  handleNewWork,
+  handleUpdateOffer,
+} from "./work.controller";
 
 const router = Router();
 
@@ -17,7 +22,7 @@ router.post(
     req["body"]["createdAt"] = new Date().toISOString();
     next();
   },
-  workResources.create
+  handleNewWork
 );
 router.get("/work/:id", workResources.single);
 router.post(

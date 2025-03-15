@@ -2,6 +2,29 @@ import mongoose from "mongoose";
 import workModel from "../../database/models/work.model";
 import { Message } from "../../database/models/chat.model";
 
+export const handleNewWork = async (req: any, res: any) => {
+  try {
+    const body = req.body;
+    console.log({ body });
+    let newWork = await workModel.create(body);
+    const io = req["io"];
+    io.emit("new_work", {
+      work: newWork,
+    });
+    return res.status(200).json({
+      success: true,
+      message: "Work created successfully",
+      details: newWork,
+    });
+  } catch (error) {
+    console.error("Error creating offer:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal Server Error",
+    });
+  }
+};
+
 export const handleNewOffer = async (req: any, res: any) => {
   try {
     const { workId, price, dueDateTime } = req.body;
