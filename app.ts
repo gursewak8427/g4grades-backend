@@ -18,7 +18,12 @@ const server = http.createServer(app);
 // Initialize Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: ["http://localhost:5173", "http://192.168.1.2:5173"],
+    origin: [
+      "http://localhost:5173",
+      "http://192.168.1.2:5173",
+      "http://g4grades.vercel.app",
+      "https://g4grades.vercel.app",
+    ],
     methods: ["GET", "POST"],
     credentials: true,
   },
@@ -46,8 +51,8 @@ app.use(
     origin: [
       "http://localhost:5173",
       "http://192.168.1.2:5173",
-      "http://g4grades-api.vercel.app",
-      "https://g4grades-api.vercel.app",
+      "http://g4grades.vercel.app",
+      "https://g4grades.vercel.app",
     ],
     credentials: true,
   })
