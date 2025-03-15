@@ -21,8 +21,8 @@ const io = new Server(server, {
     origin: [
       "http://localhost:5173",
       "http://192.168.1.2:5173",
-      "http://g4grades.vercel.app",
-      "https://g4grades.vercel.app",
+      "http://g4grades.prismaple.in",
+      "https://g4grades.prismaple.in",
     ],
     methods: ["GET", "POST"],
     credentials: true,
@@ -51,8 +51,8 @@ app.use(
     origin: [
       "http://localhost:5173",
       "http://192.168.1.2:5173",
-      "http://g4grades.vercel.app",
-      "https://g4grades.vercel.app",
+      "http://g4grades.prismaple.in",
+      "https://g4grades.prismaple.in",
     ],
     credentials: true,
   })
