@@ -2,6 +2,7 @@ import { Router } from "express";
 import ChatService from "../../services/chat.service";
 import { checkLogin } from "../../middlewares";
 import multer from "multer";
+import userModel from "../../database/models/user.model";
 
 const router = Router();
 const storage = multer.diskStorage({
@@ -78,6 +79,22 @@ router.patch(
     try {
       const io = req["io"];
       await ChatService.markSeen(req.params.chatId, req.params.userId, io);
+      res.json({ success: true });
+    } catch (error: any) {
+      res.status(500).json({ error: error.message });
+    }
+  }
+);
+
+router.patch(
+  "/chats/workId/:workId/unseen-reset",
+  checkLogin,
+  async (req: any, res: any) => {
+    try {
+      const { uid } = req?.user;
+      const user = await userModel.findById(uid);
+      if (!user) throw "User not found";
+      await ChatService.resetUnseen(req.params.workId, user.role);
       res.json({ success: true });
     } catch (error: any) {
       res.status(500).json({ error: error.message });

@@ -1,7 +1,13 @@
 import { Chat, Message, IChat, IMessage } from "../database/models/chat.model";
 import mongoose from "mongoose";
 import User from "../database/models/user.model";
+import { sendNotification } from "./notification.service";
+import workModel from "../database/models/work.model";
+import connectRedis from "../utils/redisClient";
+import { sendEmail } from "./email.service";
+import userModel from "../database/models/user.model";
 
+const redis = connectRedis();
 class ChatService {
   /**
    * Get or Create a Chat
@@ -36,20 +42,28 @@ class ChatService {
     try {
       console.log({ workId, senderId, content, messageType, files });
 
+      const workDetails = await workModel.findById(workId);
+
       let chat: any = await Chat.findOne({ workId: workId });
       if (!chat) {
         chat = await Chat.create({
           messages: [],
           status: "OPEN",
           workId: workId,
-          userId: senderId,
+          userId: workDetails?.createdBy,
         });
       }
+
+      let otherUserId = chat?.userId == senderId ? chat?.adminId : chat?.userId;
+
       // console.log({ chat });
       // Auto-assign Admin
       const sender = await User.findById(senderId);
       if (sender?.role === "admin" && !chat.adminId) {
         chat.adminId = new mongoose.Types.ObjectId(senderId);
+      }
+      if (sender?.role === "user" && !chat.userId) {
+        chat.userId = new mongoose.Types.ObjectId(senderId);
       }
 
       const messageId = new mongoose.Types.ObjectId();
@@ -74,7 +88,7 @@ class ChatService {
       // Emit the message via socket first
       io.to(workId).emit("new_message", message);
 
-      console.log("IM here", message);
+      console.log({ otherUserId });
 
       // Save the message in the database
       const savedMessage = await Message.create(message);
@@ -82,7 +96,48 @@ class ChatService {
       console.log({ savedMessage });
 
       chat.messages.push(savedMessage);
+      const activeChatId = await redis.get(`activeChat:${otherUserId}`);
+      if (activeChatId != workId) {
+        if (sender?.role === "user") {
+          chat.unseenAdmin += 1;
+        } else {
+          chat.unseenUser += 1;
+        }
+      }
+
       await chat.save();
+
+      // Send Notification
+      if (otherUserId) {
+        if (activeChatId != workId) {
+          // Simple Outer Message Event
+          const otherUserSocketId = await redis.get(`user:${otherUserId}`);
+
+          if (otherUserSocketId) {
+            io.to(otherUserSocketId).emit("new_message_outer", message);
+
+            // Notification send
+            sendNotification(io, otherUserId, {
+              message: `New Message in ${workDetails?.title}`,
+              description: `${message?.content}`,
+              type: "info",
+              data: {
+                type: "new_message",
+                details: message,
+              },
+            });
+          } else {
+            console.log("Other user is not online");
+            let otherUser: any = await userModel.findById(otherUserId);
+            console.log({ otherUser });
+            await sendEmail(
+              otherUser.email,
+              `New Message in ${workDetails?.title} | G4Grades`,
+              `You have an unreed message - ${message?.content} \nWork - ${workDetails?.title}`
+            );
+          }
+        }
+      }
 
       return savedMessage;
     } catch (error) {
@@ -109,6 +164,19 @@ class ChatService {
       { $set: { status: "SEEN" } }
     );
     io.to(chatId).emit("message_seen", { chatId, userId });
+  }
+
+  /**
+   * Reset Unseen to 0
+   */
+  async resetUnseen(workId: string, role: string) {
+    console.log({ workId, role });
+    if (role == "user")
+      await Chat.updateOne({ workId: workId }, { $set: { unseenUser: 0 } });
+    if (role == "admin")
+      await Chat.updateOne({ workId: workId }, { $set: { unseenAdmin: 0 } });
+
+    return;
   }
 
   /**

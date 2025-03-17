@@ -50,7 +50,9 @@ export const handleAuth = async (email: string, otp?: string) => {
 
 export const getUserWithId = async (id: string) => {
   try {
-    const user: any = await User.findById(new ObjectId(id)).select("-otp -otpExpires");
+    const user: any = await User.findById(new ObjectId(id)).select(
+      "-otp -otpExpires"
+    );
     if (!user) {
       return { success: false, message: "User not found" };
     }

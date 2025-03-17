@@ -7,7 +7,7 @@ export interface IWork extends Document {
   createdAt: Date;
   fees: number;
   currency: string;
-  paymentStatus: "Paid" | "Pending";
+  paymentStatus: "PAID" | "PENDING" | "PROCESSING";
   status: "PENDING" | "IN_PROGRESS" | "DONE" | "FAILED";
   offers: [
     {
@@ -28,8 +28,8 @@ const WorkSchema = new Schema<IWork>({
   currency: { type: String, default: "CAD" },
   paymentStatus: {
     type: String,
-    enum: ["Paid", "Pending"],
-    default: "Pending",
+    enum: ["PAID", "PENDING", "PROCESSING"],
+    default: "PENDING",
   },
   status: {
     type: String,
