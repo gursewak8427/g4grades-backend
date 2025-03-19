@@ -5,7 +5,6 @@ import workModel from "../../database/models/work.model";
 import { checkLogin } from "../../middlewares";
 import {
   handleAdminUpdateWork,
-  handleListUnseenData,
   handleNewOffer,
   handleNewWork,
   handleUpdateOffer,
@@ -41,11 +40,9 @@ router.post(
 router.delete("/work/:id", workResources.delete);
 router.patch("/work/:id", checkLogin, workResources.update);
 
-router.post("/work/list/unseen", checkLogin, handleListUnseenData);
-
 router.post("/admin/work/list", checkLogin, workResources.list);
 router.post("/admin/work/offer", checkLogin, handleNewOffer);
-router.post("/admin/work/update", checkLogin, handleAdminUpdateWork);
 router.post("/work/offer/update", checkLogin, handleUpdateOffer);
+router.post("/admin/work/update", checkLogin, handleAdminUpdateWork);
 
 export default router;

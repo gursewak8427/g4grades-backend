@@ -33,8 +33,6 @@ export interface IChat extends Document {
   adminId?: mongoose.Types.ObjectId;
   messages: IMessage[];
   status: "OPEN" | "CLOSED";
-  unseenUser: number;
-  unseenAdmin: number;
 }
 
 const FileSchema = new Schema<IFile>({
@@ -75,18 +73,10 @@ const MessageSchema = new Schema<IMessage>({
 
 const ChatSchema = new Schema<IChat>({
   workId: { type: Schema.Types.ObjectId, ref: "Work", required: true },
-  userId: { type: Schema.Types.ObjectId, ref: "User" },
+  userId: { type: Schema.Types.ObjectId, ref: "User", required: true },
   adminId: { type: Schema.Types.ObjectId, ref: "User" },
   messages: [MessageSchema],
   status: { type: String, enum: ["OPEN", "CLOSED"], default: "OPEN" },
-  unseenUser: {
-    type: Number,
-    default: 0,
-  },
-  unseenAdmin: {
-    type: Number,
-    default: 0,
-  },
 });
 
 export const Chat = mongoose.model<IChat>("Chat", ChatSchema);

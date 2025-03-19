@@ -1,27 +1,67 @@
 import mongoose from "mongoose";
 import workModel from "../../database/models/work.model";
-import { Chat, Message } from "../../database/models/chat.model";
-import { sendNotification } from "../../services/notification.service";
-
-import connectRedis from "../../utils/redisClient";
-import userModel from "../../database/models/user.model";
-import { sendEmail } from "../../services/email.service";
-
-const redis = connectRedis();
+import { Message } from "../../database/models/chat.model";
 
 export const handleNewWork = async (req: any, res: any) => {
   try {
     const body = req.body;
     console.log({ body });
     let newWork = await workModel.create(body);
+
+    let workDetails = await workModel
+      .findById(newWork._id)
+      .populate("createdBy");
+
     const io = req["io"];
     io.emit("new_work", {
-      work: newWork,
+      work: workDetails,
     });
+
+    let adminDetails = await userModel
+      .findOne({ role: "admin" })
+      .sort({ createdAt: -1 });
+
+    let otherUserId: any = adminDetails?._id;
+
+    if (otherUserId) {
+      // Simple Outer Message Event
+      const otherUserSocketId = await redis.get(`user:${otherUserId}`);
+
+      if (otherUserSocketId) {
+        let userDetails: any = await userModel
+          .findById(workDetails?.createdBy)
+          .lean();
+
+        // Notification send
+        sendNotification(io, otherUserId, {
+          message: `New Work Received ${workDetails?.title}`,
+          description: `${userDetails?.email}`,
+          type: "info",
+          data: {
+            type: "new_work",
+            details: {
+              workDetails,
+              userDetails,
+            },
+          },
+        });
+      } else {
+        let otherUser: any = await userModel.findById(otherUserId);
+        let userDetails: any = await userModel
+          .findById(workDetails?.createdBy)
+          .lean();
+        await sendEmail(
+          otherUser.email,
+          `New Work Received ${workDetails?.title} | G4Grades`,
+          `You have a new work - ${workDetails?.title} \nUser - ${userDetails?.email}`
+        );
+      }
+    }
+
     return res.status(200).json({
       success: true,
       message: "Work created successfully",
-      details: newWork,
+      details: workDetails,
     });
   } catch (error) {
     console.error("Error creating offer:", error);
@@ -98,45 +138,6 @@ export const handleNewOffer = async (req: any, res: any) => {
       });
     }
 
-    let otherUserId = workDetails?.createdBy;
-
-    const activeChatId = await redis.get(`activeChat:${otherUserId}`);
-    console.log({ activeChatId, workId });
-    if (activeChatId != workId) {
-      const sender = await userModel.findById(uid);
-      let chat: any = await Chat.findOne({ workId });
-      if (sender?.role === "user") {
-        chat.unseenAdmin += 1;
-      } else {
-        chat.unseenUser += 1;
-      }
-      await chat.save();
-
-      const otherUserSocketId = await redis.get(`user:${otherUserId}`);
-      if (otherUserSocketId) {
-        io.to(otherUserSocketId).emit("new_message_outer", message);
-
-        sendNotification(io, otherUserId, {
-          message: `New Offer #${newOffer?.offerId} in ${workDetails?.title}`,
-          description: `$${newOffer?.price} offer `,
-          type: "info",
-          data: {
-            type: "new_offer",
-            details: newOffer,
-          },
-        });
-      } else {
-        console.log("Other user is not online");
-        let otherUser: any = await userModel.findById(otherUserId);
-        console.log({ otherUser });
-        await sendEmail(
-          otherUser.email,
-          `New Offer #${newOffer?.offerId} in ${workDetails?.title} | G4Grade`,
-          `$${newOffer?.price} offer in ${workDetails?.title}`
-        );
-      }
-    }
-
     return res.status(200).json({
       success: true,
       message: "Offer created successfully",
@@ -172,8 +173,6 @@ export const handleUpdateOffer = async (req: any, res: any) => {
         message: "Work item not found",
       });
     }
-
-    const chatItem: any = await Chat.findOne({ workId });
 
     // Find the index of the offer inside the offers array
     const offerIndex = workItem.offers.findIndex(
@@ -219,12 +218,18 @@ export const handleUpdateOffer = async (req: any, res: any) => {
     // Save message
     const savedMessage = await Message.create(message);
 
+    let deepWorkDetails: any = await workModel
+      .findById(workId)
+      .populate("createdBy offers.appliedCoupon.coupon");
+    console.log({ deepWorkDetails });
+
     // Emit WebSocket event for real-time updates
     io.to(workId).emit("work_update", {
       type: "offer_update",
-      offer: workItem.offers[offerIndex],
+      offer: deepWorkDetails.offers[offerIndex],
     });
 
+<<<<<<< HEAD
     let otherUserId =
       uid == workItem?.createdBy ? chatItem?.adminId : chatItem?.userId;
 
@@ -238,6 +243,29 @@ export const handleUpdateOffer = async (req: any, res: any) => {
         { _id: new mongoose.Types.ObjectId(workId) },
         {
           paymentStatus: "PAID",
+        }
+      );
+
+      // change user's coupon state to used
+      let appliedCouponId =
+        deepWorkDetails?.offers[offerIndex]["appliedCoupon"]["coupon"]["_id"];
+      console.log({
+        activeOffer: deepWorkDetails?.offers[offerIndex],
+        appliedCouponId,
+      });
+      let user: any = await userModel
+        .findById(deepWorkDetails?.createdBy)
+        .lean();
+      let coupon = user.coupons.map((coupon: any) =>
+        coupon.coupon?.toString() === appliedCouponId?.toString()
+          ? { ...coupon, status: "used" }
+          : coupon
+      );
+      console.log({ user, coupon });
+      await userModel.updateOne(
+        { _id: new mongoose.Types.ObjectId(deepWorkDetails?.createdBy) },
+        {
+          coupons: coupon,
         }
       );
     } else if (data["paymentStatus"] == "PROCESSING") {
@@ -306,6 +334,8 @@ export const handleUpdateOffer = async (req: any, res: any) => {
       }
     }
 
+=======
+>>>>>>> parent of f03b126 (noti done)
     return res.status(200).json({
       success: true,
       message: "Offer updated successfully",
@@ -374,53 +404,6 @@ export const handleAdminUpdateWork = async (req: any, res: any) => {
       work: workItem,
     });
 
-    let otherUserId = workItem?.createdBy;
-
-    const activeChatId = await redis.get(`activeChat:${otherUserId}`);
-    console.log({ activeChatId, workId });
-    if (activeChatId != workId) {
-      const sender = await userModel.findById(uid);
-      let chat: any = await Chat.findOne({ workId });
-      if (sender?.role === "user") {
-        chat.unseenAdmin += 1;
-      } else {
-        chat.unseenUser += 1;
-      }
-      await chat.save();
-
-      const otherUserSocketId = await redis.get(`user:${otherUserId}`);
-      console.log("IM Here", { sender, chat, otherUserSocketId });
-
-      if (otherUserSocketId) {
-        io.to(otherUserSocketId).emit("new_message_outer", {
-          type: "work-status",
-          payload: {
-            workId: workId,
-            status: data["status"],
-          },
-        });
-
-        sendNotification(io, otherUserId, {
-          message: `Work Status Update`,
-          description: `${data["status"]} - ${workItem?.title}`,
-          type: "info",
-          data: {
-            type: "work_update",
-            details: workItem,
-          },
-        });
-      } else {
-        console.log("Other user is not online");
-        let otherUser: any = await userModel.findById(otherUserId);
-        console.log({ otherUser });
-        await sendEmail(
-          otherUser.email,
-          `Work Status Update | G4Grades`,
-          `${data["status"]} - ${workItem?.title}`
-        );
-      }
-    }
-
     return res.status(200).json({
       success: true,
       message: "Work updated successfully",
@@ -433,27 +416,4 @@ export const handleAdminUpdateWork = async (req: any, res: any) => {
       message: "Internal Server Error",
     });
   }
-};
-
-export const handleListUnseenData = async (req: any, res: any) => {
-  try {
-    const io = req["io"];
-    const { uid } = req.user;
-
-    // get List of works
-    let workIds: any = await workModel.find().select("_id");
-    workIds = workIds?.map((w: any) => w?._id?.toString());
-
-    let data = await Chat.find({
-      workId: { $in: workIds },
-    }).select("unseenUser unseenAdmin workId");
-
-    console.log({ data });
-
-    return res.json({
-      success: true,
-      message: "Unseen data fetched",
-      details: data,
-    });
-  } catch (error) {}
 };
