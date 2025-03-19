@@ -1,6 +1,13 @@
 import mongoose from "mongoose";
 import workModel from "../../database/models/work.model";
-import { Message } from "../../database/models/chat.model";
+import { Chat, Message } from "../../database/models/chat.model";
+import { sendNotification } from "../../services/notification.service";
+
+import connectRedis from "../../utils/redisClient";
+import userModel from "../../database/models/user.model";
+import { sendEmail } from "../../services/email.service";
+
+const redis = connectRedis();
 
 export const handleNewWork = async (req: any, res: any) => {
   try {
@@ -138,6 +145,45 @@ export const handleNewOffer = async (req: any, res: any) => {
       });
     }
 
+    let otherUserId = workDetails?.createdBy;
+
+    const activeChatId = await redis.get(`activeChat:${otherUserId}`);
+    console.log({ activeChatId, workId });
+    if (activeChatId != workId) {
+      const sender = await userModel.findById(uid);
+      let chat: any = await Chat.findOne({ workId });
+      if (sender?.role === "user") {
+        chat.unseenAdmin += 1;
+      } else {
+        chat.unseenUser += 1;
+      }
+      await chat.save();
+
+      const otherUserSocketId = await redis.get(`user:${otherUserId}`);
+      if (otherUserSocketId) {
+        io.to(otherUserSocketId).emit("new_message_outer", message);
+
+        sendNotification(io, otherUserId, {
+          message: `New Offer #${newOffer?.offerId} in ${workDetails?.title}`,
+          description: `$${newOffer?.price} offer `,
+          type: "info",
+          data: {
+            type: "new_offer",
+            details: newOffer,
+          },
+        });
+      } else {
+        console.log("Other user is not online");
+        let otherUser: any = await userModel.findById(otherUserId);
+        console.log({ otherUser });
+        await sendEmail(
+          otherUser.email,
+          `New Offer #${newOffer?.offerId} in ${workDetails?.title} | G4Grade`,
+          `$${newOffer?.price} offer in ${workDetails?.title}`
+        );
+      }
+    }
+
     return res.status(200).json({
       success: true,
       message: "Offer created successfully",
@@ -173,6 +219,8 @@ export const handleUpdateOffer = async (req: any, res: any) => {
         message: "Work item not found",
       });
     }
+
+    const chatItem: any = await Chat.findOne({ workId });
 
     // Find the index of the offer inside the offers array
     const offerIndex = workItem.offers.findIndex(
@@ -229,7 +277,6 @@ export const handleUpdateOffer = async (req: any, res: any) => {
       offer: deepWorkDetails.offers[offerIndex],
     });
 
-<<<<<<< HEAD
     let otherUserId =
       uid == workItem?.createdBy ? chatItem?.adminId : chatItem?.userId;
 
@@ -334,8 +381,6 @@ export const handleUpdateOffer = async (req: any, res: any) => {
       }
     }
 
-=======
->>>>>>> parent of f03b126 (noti done)
     return res.status(200).json({
       success: true,
       message: "Offer updated successfully",
@@ -404,6 +449,53 @@ export const handleAdminUpdateWork = async (req: any, res: any) => {
       work: workItem,
     });
 
+    let otherUserId = workItem?.createdBy;
+
+    const activeChatId = await redis.get(`activeChat:${otherUserId}`);
+    console.log({ activeChatId, workId });
+    if (activeChatId != workId) {
+      const sender = await userModel.findById(uid);
+      let chat: any = await Chat.findOne({ workId });
+      if (sender?.role === "user") {
+        chat.unseenAdmin += 1;
+      } else {
+        chat.unseenUser += 1;
+      }
+      await chat.save();
+
+      const otherUserSocketId = await redis.get(`user:${otherUserId}`);
+      console.log("IM Here", { sender, chat, otherUserSocketId });
+
+      if (otherUserSocketId) {
+        io.to(otherUserSocketId).emit("new_message_outer", {
+          type: "work-status",
+          payload: {
+            workId: workId,
+            status: data["status"],
+          },
+        });
+
+        sendNotification(io, otherUserId, {
+          message: `Work Status Update`,
+          description: `${data["status"]} - ${workItem?.title}`,
+          type: "info",
+          data: {
+            type: "work_update",
+            details: workItem,
+          },
+        });
+      } else {
+        console.log("Other user is not online");
+        let otherUser: any = await userModel.findById(otherUserId);
+        console.log({ otherUser });
+        await sendEmail(
+          otherUser.email,
+          `Work Status Update | G4Grades`,
+          `${data["status"]} - ${workItem?.title}`
+        );
+      }
+    }
+
     return res.status(200).json({
       success: true,
       message: "Work updated successfully",
@@ -416,4 +508,27 @@ export const handleAdminUpdateWork = async (req: any, res: any) => {
       message: "Internal Server Error",
     });
   }
+};
+
+export const handleListUnseenData = async (req: any, res: any) => {
+  try {
+    const io = req["io"];
+    const { uid } = req.user;
+
+    // get List of works
+    let workIds: any = await workModel.find().select("_id");
+    workIds = workIds?.map((w: any) => w?._id?.toString());
+
+    let data = await Chat.find({
+      workId: { $in: workIds },
+    }).select("unseenUser unseenAdmin workId");
+
+    console.log({ data });
+
+    return res.json({
+      success: true,
+      message: "Unseen data fetched",
+      details: data,
+    });
+  } catch (error) {}
 };
