@@ -3,11 +3,24 @@ import User from "../../database/models/user.model";
 import { randomInt } from "crypto";
 import { sendEmail } from "../../services/email.service";
 import { ObjectId } from "mongodb";
+import { showPastDate } from "../../utils/utils";
+import Coupon from "../../database/models/coupons.model";
 
 const generateOtp = (): string => randomInt(100000, 999999).toString();
 
 export const handleAuth = async (email: string, otp?: string) => {
   let user: any = await User.findOne({ email });
+  let isNewAccount = false;
+
+  // If isDeleted is true, return error and show alert your account has been delete 2 days ago like this
+  if (user?.isDeleted) {
+    return {
+      success: false,
+      message: `Account has been deleted ${showPastDate(
+        user?.deletedAt
+      )} by user itself.`,
+    };
+  }
 
   // If no OTP is provided, send a new OTP
   if (!otp) {
@@ -18,13 +31,27 @@ export const handleAuth = async (email: string, otp?: string) => {
       user.otp = newOtp;
       user.otpExpires = otpExpires;
     } else {
-      user = await User.create({ email, otp: newOtp, otpExpires });
+      // get couponId of WELCOME60 coupon
+      const wlcmCoupon = await Coupon.findOne({ code: "WELCOME50" });
+      const coupon = {
+        coupon: wlcmCoupon?._id,
+        validTill: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Valid for 30 days
+        status: "active",
+      };
+      console.log({ coupon });
+      user = await User.create({
+        email,
+        otp: newOtp,
+        otpExpires,
+        coupons: wlcmCoupon ? [coupon] : [],
+        myReferCode: `REF${Math.random().toString(36).substring(4)}`,
+      });
     }
 
     await user.save();
 
     // Send OTP via Email
-    await sendEmail(email, "Your OTP Code", `Your OTP is: ${newOtp}`);
+    sendEmail(email, "Your OTP Code", `Your OTP is: ${newOtp}`);
 
     console.log(`OTP for ${email}: ${newOtp}`); // Replace with email service
     return { message: "OTP sent to your email", success: true };
@@ -38,6 +65,9 @@ export const handleAuth = async (email: string, otp?: string) => {
   // Clear OTP after successful verification
   user.otp = "";
   user.otpExpires = null;
+
+  isNewAccount = user.isNewAccount;
+
   await user.save();
 
   // Generate JWT token
@@ -45,14 +75,12 @@ export const handleAuth = async (email: string, otp?: string) => {
     expiresIn: "7d",
   });
 
-  return { success: true, token };
+  return { success: true, token, isNewAccount };
 };
 
 export const getUserWithId = async (id: string) => {
   try {
-    const user: any = await User.findById(new ObjectId(id)).select(
-      "-otp -otpExpires"
-    );
+    const user: any = await User.findById(new ObjectId(id)).select("-otp -otpExpires");
     if (!user) {
       return { success: false, message: "User not found" };
     }

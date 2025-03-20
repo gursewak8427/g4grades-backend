@@ -15,6 +15,11 @@ export interface IWork extends Document {
       dueDateTime: Date;
       status: "PENDING" | "ACCEPTED" | "REJECTED";
       paymentStatus: "PENDING" | "PROCESSING" | "PAID";
+      appliedCoupon: {
+        status: boolean;
+        coupon: mongoose.Types.ObjectId;
+        discount: Number;
+      };
     }
   ];
 }
@@ -50,6 +55,14 @@ const WorkSchema = new Schema<IWork>({
         type: String,
         enum: ["PENDING", "PROCESSING", "PAID"],
         default: "PENDING",
+      },
+      appliedCoupon: {
+        status: Boolean,
+        coupon: {
+          type: Schema.Types.ObjectId,
+          ref: "Coupon",
+        },
+        discount: Number,
       },
     },
   ],

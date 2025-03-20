@@ -14,14 +14,61 @@ export const handleNewWork = async (req: any, res: any) => {
     const body = req.body;
     console.log({ body });
     let newWork = await workModel.create(body);
+
+    let workDetails = await workModel
+      .findById(newWork._id)
+      .populate("createdBy");
+
     const io = req["io"];
     io.emit("new_work", {
-      work: newWork,
+      work: workDetails,
     });
+
+    let adminDetails = await userModel
+      .findOne({ role: "admin" })
+      .sort({ createdAt: -1 });
+
+    let otherUserId: any = adminDetails?._id;
+
+    if (otherUserId) {
+      // Simple Outer Message Event
+      const otherUserSocketId = await redis.get(`user:${otherUserId}`);
+
+      if (otherUserSocketId) {
+        let userDetails: any = await userModel
+          .findById(workDetails?.createdBy)
+          .lean();
+
+        // Notification send
+        sendNotification(io, otherUserId, {
+          message: `New Work Received ${workDetails?.title}`,
+          description: `${userDetails?.email}`,
+          type: "info",
+          data: {
+            type: "new_work",
+            details: {
+              workDetails,
+              userDetails,
+            },
+          },
+        });
+      } else {
+        let otherUser: any = await userModel.findById(otherUserId);
+        let userDetails: any = await userModel
+          .findById(workDetails?.createdBy)
+          .lean();
+        await sendEmail(
+          otherUser.email,
+          `New Work Received ${workDetails?.title} | G4Grades`,
+          `You have a new work - ${workDetails?.title} \nUser - ${userDetails?.email}`
+        );
+      }
+    }
+
     return res.status(200).json({
       success: true,
       message: "Work created successfully",
-      details: newWork,
+      details: workDetails,
     });
   } catch (error) {
     console.error("Error creating offer:", error);
@@ -225,6 +272,17 @@ export const handleUpdateOffer = async (req: any, res: any) => {
       offer: workItem.offers[offerIndex],
     });
 
+    let deepWorkDetails: any = await workModel
+      .findById(workId)
+      .populate("createdBy offers.appliedCoupon.coupon");
+    console.log({ deepWorkDetails });
+
+    // Emit WebSocket event for real-time updates
+    io.to(workId).emit("work_update", {
+      type: "offer_update",
+      offer: deepWorkDetails.offers[offerIndex],
+    });
+
     let otherUserId =
       uid == workItem?.createdBy ? chatItem?.adminId : chatItem?.userId;
 
@@ -238,6 +296,29 @@ export const handleUpdateOffer = async (req: any, res: any) => {
         { _id: new mongoose.Types.ObjectId(workId) },
         {
           paymentStatus: "PAID",
+        }
+      );
+
+      // change user's coupon state to used
+      let appliedCouponId =
+        deepWorkDetails?.offers[offerIndex]["appliedCoupon"]["coupon"]["_id"];
+      console.log({
+        activeOffer: deepWorkDetails?.offers[offerIndex],
+        appliedCouponId,
+      });
+      let user: any = await userModel
+        .findById(deepWorkDetails?.createdBy)
+        .lean();
+      let coupon = user.coupons.map((coupon: any) =>
+        coupon.coupon?.toString() === appliedCouponId?.toString()
+          ? { ...coupon, status: "used" }
+          : coupon
+      );
+      console.log({ user, coupon });
+      await userModel.updateOne(
+        { _id: new mongoose.Types.ObjectId(deepWorkDetails?.createdBy) },
+        {
+          coupons: coupon,
         }
       );
     } else if (data["paymentStatus"] == "PROCESSING") {
