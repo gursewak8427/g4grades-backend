@@ -106,7 +106,6 @@ class ChatService {
     files: any,
     io: any
   ) {
-    const startTime = Date.now();
     try {
       console.log("Processing message...");
 
@@ -218,13 +217,9 @@ class ChatService {
       console.log("Message processed & saved.");
       return savedMessage;
     } catch (error) {
-      console.error("sendMessage error:", error);
-    } finally {
-      const endTime = Date.now();
-      console.log(`sendMessage execution time: ${endTime - startTime} ms`);
+      console.log({ error });
     }
   }
-
   /**
    * Mark Messages as Delivered
    */

@@ -6,6 +6,6 @@ const MONGO_DB: string = process.env.MONGO_DB?.toString() || "";
 
 export const connectMongoDb = async () => {
   let connection = await mongoose.connect(MONGO_DB);
-  console.log("✅ Connected to Database");
+  console.log("DB Connected!");
   return connection;
 };

@@ -20,35 +20,3 @@ export const verifyToken = (token: any) => {
 export const decodeToken = (token: any) => {
   return jwt.decode(token);
 };
-
-export const showPastDate = (dateString: any) => {
-  const date: any = new Date(dateString);
-  const now: any = new Date();
-
-  const seconds = Math.floor((now - date) / 1000); // Positive for past dates
-  const daysDifference = Math.floor(seconds / 86400); // Convert to days
-
-  const intervals = {
-    year: 31536000,
-    month: 2592000,
-    week: 604800,
-    day: 86400,
-    hour: 3600,
-    minute: 60,
-    second: 1,
-  };
-
-  if (daysDifference === 0) {
-    for (const [unit, secondsInUnit] of Object.entries(intervals)) {
-      const count = Math.floor(seconds / secondsInUnit);
-      if (count >= 1) return `${count} ${unit}${count > 1 ? "s" : ""} ago`;
-    }
-    return "just now";
-  }
-
-  if (daysDifference === 1) return "yesterday";
-  if (daysDifference < -6)
-    return `last ${date.toLocaleDateString("en-US", { weekday: "long" })}`;
-
-  return `${daysDifference} days ago`;
-};
