@@ -5,6 +5,7 @@ import { sendEmail } from "../../services/email.service";
 import { ObjectId } from "mongodb";
 import { showPastDate } from "../../utils/utils";
 import Coupon from "../../database/models/coupons.model";
+import { getOtpTemplate } from "../../templates/emails/otp";
 
 const generateOtp = (): string => randomInt(100000, 999999).toString();
 
@@ -51,7 +52,8 @@ export const handleAuth = async (email: string, otp?: string) => {
     await user.save();
 
     // Send OTP via Email
-    sendEmail(email, "Your OTP Code", `Your OTP is: ${newOtp}`);
+    let template = getOtpTemplate(newOtp);
+    sendEmail(email, "Your OTP Code for Verification", template, true);
 
     console.log(`OTP for ${email}: ${newOtp}`); // Replace with email service
     return { message: "OTP sent to your email", success: true };
@@ -80,7 +82,9 @@ export const handleAuth = async (email: string, otp?: string) => {
 
 export const getUserWithId = async (id: string) => {
   try {
-    const user: any = await User.findById(new ObjectId(id)).select("-otp -otpExpires");
+    const user: any = await User.findById(new ObjectId(id)).select(
+      "-otp -otpExpires"
+    );
     if (!user) {
       return { success: false, message: "User not found" };
     }

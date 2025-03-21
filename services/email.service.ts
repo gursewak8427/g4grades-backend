@@ -8,13 +8,19 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-export const sendEmail = async (to: string, subject: string, text: string) => {
+export const sendEmail = async (
+  to: string,
+  subject: string,
+  data: string,
+  isHtml: boolean = false
+) => {
   try {
     const mailOptions = {
       from: process.env.EMAIL_USER,
       to,
       subject,
-      text,
+      replyTo: "g4grades@gmail.com",
+      ...(isHtml ? { html: data } : { text: data }),
     };
 
     await transporter.sendMail(mailOptions);
