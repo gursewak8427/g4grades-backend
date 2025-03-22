@@ -43,10 +43,10 @@ class ChatService {
       if (otherUserId) {
         const otherUserSocketId = await redis.get(`user:${otherUserId}`);
         console.log({ otherUserSocketId });
+        if (otherUserSocketId)
+          io.to(otherUserSocketId).emit("new_message_outer", message);
         if (activeChatId != workId) {
           if (otherUserSocketId) {
-            io.to(otherUserSocketId).emit("new_message_outer", message);
-
             // Notification send
             sendNotification(io, otherUserId, {
               message: `New Message in ${workDetails?.title}`,
