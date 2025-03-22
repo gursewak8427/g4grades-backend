@@ -316,8 +316,10 @@ export const handleUpdateOffer = async (req: any, res: any) => {
           !couponUpdated &&
           coupon.coupon?.toString() === appliedCouponId?.toString()
         ) {
-          couponUpdated = true;
-          return { ...coupon, status: "used" };
+          if (coupon?.status == "active") {
+            couponUpdated = true;
+            return { ...coupon, status: "used" };
+          }
         }
         return coupon;
       });
