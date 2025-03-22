@@ -25,7 +25,8 @@ export const handleApplyCoupon = async (req: any, res: any) => {
     }
 
     const userCoupon: any = user.coupons.find(
-      (c: any) => c.coupon.toString() === coupon._id.toString()
+      (c: any) =>
+        c.coupon.toString() === coupon._id.toString() && c.status === "active"
     );
     if (!userCoupon) {
       return res
