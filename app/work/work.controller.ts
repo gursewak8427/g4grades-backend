@@ -310,11 +310,17 @@ export const handleUpdateOffer = async (req: any, res: any) => {
       let user: any = await userModel
         .findById(deepWorkDetails?.createdBy)
         .lean();
-      let coupon = user.coupons.map((coupon: any) =>
-        coupon.coupon?.toString() === appliedCouponId?.toString()
-          ? { ...coupon, status: "used" }
-          : coupon
-      );
+      let couponUpdated = false;
+      let coupon = user.coupons.map((coupon: any) => {
+        if (
+          !couponUpdated &&
+          coupon.coupon?.toString() === appliedCouponId?.toString()
+        ) {
+          couponUpdated = true;
+          return { ...coupon, status: "used" };
+        }
+        return coupon;
+      });
       console.log({ user, coupon });
       await userModel.updateOne(
         { _id: new mongoose.Types.ObjectId(deepWorkDetails?.createdBy) },
