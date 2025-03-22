@@ -6,6 +6,7 @@ import { sendNotification } from "../../services/notification.service";
 import connectRedis from "../../utils/redisClient";
 import userModel from "../../database/models/user.model";
 import { sendEmail } from "../../services/email.service";
+import { getWorkStatusUpdateTemplate } from "../../templates/emails/workUpdate";
 
 const redis = connectRedis();
 
@@ -497,7 +498,8 @@ export const handleAdminUpdateWork = async (req: any, res: any) => {
         await sendEmail(
           otherUser.email,
           `Work Status Update | G4Grades`,
-          `${data["status"]} - ${workItem?.title}`
+          getWorkStatusUpdateTemplate(workItem?.title, data["status"]),
+          true
         );
       }
     }

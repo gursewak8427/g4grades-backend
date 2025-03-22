@@ -28,7 +28,7 @@ const WorkSchema = new Schema<IWork>({
   title: { type: String, required: true },
   dueDate: { type: Date, required: true },
   createdBy: { type: Schema.Types.ObjectId, ref: "User", required: true }, // Linked to User
-  createdAt: { type: Date, required: true, default: Date.now },
+  createdAt: { type: Date, required: true },
   fees: { type: Number, default: 0 },
   currency: { type: String, default: "CAD" },
   paymentStatus: {

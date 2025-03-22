@@ -1,6 +1,7 @@
 import Coupon from "../../database/models/coupons.model";
 import userModel from "../../database/models/user.model";
 import { sendEmail } from "../../services/email.service";
+import { getCouponReceivedTemplate } from "../../templates/emails/refer";
 
 export const handleUserUpdate = async (req: any, res: any) => {
   const body = req.body;
@@ -33,11 +34,10 @@ export const handleUserUpdate = async (req: any, res: any) => {
       await user.save();
 
       // send Email
-      sendEmail(
-        user.email,
-        `You got refer coupon | G4Grades`,
-        `New user ${newUser?.email} has used your refer code. You got a new coupon`
+      const template = getCouponReceivedTemplate(
+        newUser?.email?.toString() || ""
       );
+      sendEmail(user.email, `You got refer coupon | G4Grades`, template, true);
     }
   }
 

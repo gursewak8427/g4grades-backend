@@ -22,7 +22,7 @@ export const handleChatSocket = (io: any) => {
     socket.on("leave_work_chat", async ({ workId, userId }: any) => {
       console.log(`User Leave chat with ${JSON.stringify({ workId, userId })}`);
       socket.join(workId);
-      await redis.set(`activeChat:${userId}`, "");
+      await redis.del(`activeChat:${userId}`);
     });
 
     socket.on("typing", ({ chatId, userId }: any) => {
@@ -32,13 +32,13 @@ export const handleChatSocket = (io: any) => {
     socket.on("disconnect", async () => {
       console.log("User Disconnected");
       const keys = await redis.keys("user:*");
+      console.log({ keys });
       for (let key of keys) {
         const storedSocketId = await redis.get(key);
         if (storedSocketId === socket.id) {
+          const userId = key.split(":")[1];
           await redis.del(key);
-          console.log(
-            `User ${key.split(":")[1]} disconnected and removed from Redis`
-          );
+          console.log(`User ${userId} disconnected and removed from Redis`);
           break;
         }
       }

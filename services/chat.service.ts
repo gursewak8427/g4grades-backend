@@ -6,6 +6,7 @@ import workModel from "../database/models/work.model";
 import { sendEmail } from "./email.service";
 import userModel from "../database/models/user.model";
 import connectRedis from "../utils/redisClient";
+import { getNewMessageTemplate } from "../templates/emails/message";
 
 const redis = connectRedis();
 class ChatService {
@@ -40,10 +41,9 @@ class ChatService {
     // Send Notification
     try {
       if (otherUserId) {
-        if (activeChatId != workId) {
-          // Simple Outer Message Event
-          const otherUserSocketId = await redis.get(`user:${otherUserId}`);
-
+        const otherUserSocketId = await redis.get(`user:${otherUserId}`);
+        console.log({ otherUserSocketId });
+        if (activeChatId != workId || !Boolean(otherUserSocketId)) {
           if (otherUserSocketId) {
             io.to(otherUserSocketId).emit("new_message_outer", message);
 
@@ -76,17 +76,21 @@ class ChatService {
                 `You have a new work - ${workDetails?.title} \nUser - ${userDetails?.email}`
               );
             }
+
+            let template = getNewMessageTemplate(
+              workDetails?.title,
+              message?.content,
+              message?.files?.length
+            );
             await sendEmail(
               otherUser.email,
               `New Message in ${workDetails?.title} | G4Grades`,
-              `You have an unread message - ${
-                message?.content ||
-                `${message?.files?.length} ${
-                  message?.files?.length > 1 ? "files" : "file"
-                }`
-              } \nWork - ${workDetails?.title}`
+              template,
+              true
             );
           }
+        } else {
+          console.log(`User is online in chat ${workId}`);
         }
       }
       console.log("Notification send.............");
